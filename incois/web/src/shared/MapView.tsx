@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import mapboxgl, { Map as MapboxMap, GeoJSONSource } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import type { Report } from './store'
+import { useAppStore } from './store'
 
 type ReportFeature = {
   type: 'Feature'
@@ -39,6 +41,20 @@ export function MapView() {
     type: 'FeatureCollection',
     features: generateMockReports(250, [68, 7, 97, 22]), // India coastal bbox approx
   }), []) as unknown as GeoJSON.FeatureCollection
+  const setReports = useAppStore(s => s.setReports)
+  const selectedId = useAppStore(s => s.selectedId)
+
+  // publish reports to store once
+  useEffect(() => {
+    const list: Report[] = (data.features as any[]).map((f) => ({
+      id: f.properties.id,
+      title: f.properties.title,
+      severity: f.properties.severity,
+      coordinates: f.geometry.coordinates,
+      timestamp: Date.now() - Math.floor(Math.random()*3600_000),
+    }))
+    setReports(list)
+  }, [data, setReports])
 
   useEffect(() => {
     mapboxgl.accessToken = accessToken || 'no-token'
@@ -138,6 +154,7 @@ export function MapView() {
         if (!feature) return
         const coordinates = feature.geometry.coordinates.slice()
         const title = feature.properties.title
+        useAppStore.getState().select(feature.properties.id)
         new mapboxgl.Popup({ offset: 12 })
           .setLngLat(coordinates)
           .setHTML(`<div style="font-weight:600;">${title}</div><div style="font-size:12px;color:#555">Severity: ${feature.properties.severity}</div>`)
@@ -152,6 +169,19 @@ export function MapView() {
 
     return () => { map.remove() }
   }, [accessToken, data])
+
+  // center map on selected marker
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !selectedId) return
+    const src = map.getSource('reports') as GeoJSONSource | undefined
+    if (!src) return
+    const features = map.querySourceFeatures('reports', { sourceLayer: undefined }) as any[]
+    const target = features.find(f => !('point_count' in f.properties) && f.properties.id === selectedId)
+    if (target) {
+      map.easeTo({ center: target.geometry.coordinates as [number, number], zoom: Math.max(map.getZoom(), 10) })
+    }
+  }, [selectedId])
 
   return <div ref={containerRef} className="absolute inset-0" />
 }

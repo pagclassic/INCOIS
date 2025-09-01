@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { MapView } from '../shared/MapView'
+import { useAppStore } from '../shared/store'
 
 function Header() {
   return (
@@ -61,14 +62,19 @@ function MapCanvas() {
 }
 
 function RightFeed() {
+  const reports = useAppStore(s => s.reports)
+  const select = useAppStore(s => s.select)
+  const selectedId = useAppStore(s => s.selectedId)
+  const navigate = useNavigate()
   return (
     <aside className="w-80 p-3 border-l hidden lg:block">
       <div className="mb-2 font-semibold">Live Feed</div>
-      <div className="space-y-2 text-sm">
-        {[1,2,3,4,5,6].map(i => (
-          <div key={i} className="p-2 rounded border">
-            <div className="text-xs text-gray-500">Just now · Vizag</div>
-            <div className="font-medium">High waves near beach #{i}</div>
+      <div className="space-y-2 text-sm overflow-auto max-h-[calc(100vh-5rem)] pr-1">
+        {reports.slice(0, 100).map(r => (
+          <div key={r.id} className={`p-2 rounded border cursor-pointer ${selectedId===r.id? 'border-ocean-900 bg-ocean-900/5':'hover:bg-gray-50'}`} onClick={() => { select(r.id); }}>
+            <div className="text-xs text-gray-500">{new Date(r.timestamp).toLocaleTimeString()}</div>
+            <div className="font-medium">{r.title}</div>
+            <div className="text-xs capitalize">Severity: {r.severity} <button className="ml-2 underline" onClick={(e)=>{e.stopPropagation(); navigate(`/report/${r.id}`)}}>Open</button></div>
           </div>
         ))}
       </div>
