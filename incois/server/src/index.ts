@@ -26,8 +26,9 @@ app.use('/api/reports', reportsRouter)
 app.use('/api/social', socialRouter)
 app.use('/api/hotspots', hotspotsRouter)
 
-const port = process.env.PORT || 8080
-app.listen(port, () => {
-  console.log(`API listening on :${port}`)
+const port = Number(process.env.PORT || 8080)
+const host = '0.0.0.0'
+app.listen(port, host, () => {
+  console.log(`API listening on http://${host}:${port}`)
 })
 
