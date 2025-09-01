@@ -15,6 +15,11 @@ const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use((0, morgan_1.default)('dev'));
+app.get('/', (_req, res) => res.json({
+    ok: true,
+    message: 'INCOIS API running',
+    endpoints: ['/health', '/api/reports', '/api/hotspots', '/api/social/trends']
+}));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/reports', reports_1.default);
 app.use('/api/social', social_1.default);

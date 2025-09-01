@@ -13,6 +13,14 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(morgan('dev'))
 
+app.get('/', (_req, res) =>
+  res.json({
+    ok: true,
+    message: 'INCOIS API running',
+    endpoints: ['/health', '/api/reports', '/api/hotspots', '/api/social/trends']
+  })
+)
+
 app.get('/health', (_req, res) => res.json({ ok: true }))
 app.use('/api/reports', reportsRouter)
 app.use('/api/social', socialRouter)
