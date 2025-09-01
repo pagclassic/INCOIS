@@ -1,0 +1,287 @@
+openapi: 3.1.0
+info:
+  title: INCOIS Ocean Hazard Reporting API
+  version: 0.1.0
+  description: |
+    Core API for crowdsourced ocean-hazard reports, hotspots, verification, and social trends.
+servers:
+  - url: http://localhost:8080
+    description: Local dev
+  - url: https://api.example.incois
+    description: Production (placeholder)
+tags:
+  - name: Reports
+  - name: Verification
+  - name: Hotspots
+  - name: Social
+security:
+  - bearerAuth: []
+paths:
+  /api/reports:
+    post:
+      tags: [Reports]
+      summary: Submit a new hazard report
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                eventType:
+                  $ref: '#/components/schemas/EventType'
+                description:
+                  type: string
+                  maxLength: 2000
+                severity:
+                  $ref: '#/components/schemas/Severity'
+                language:
+                  type: string
+                lat:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                lon:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                media:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required: [eventType, severity, lat, lon]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+    get:
+      tags: [Reports]
+      summary: Fetch reports for the map/feed
+      parameters:
+        - in: query
+          name: bbox
+          description: minLng,minLat,maxLng,maxLat
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: type
+          schema: { $ref: '#/components/schemas/EventType' }
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ReportStatus' }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+  /api/reports/{id}:
+    get:
+      tags: [Reports]
+      summary: Get a report by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '404': { description: Not found }
+  /api/reports/{id}/verify:
+    post:
+      tags: [Verification]
+      summary: Record a verification decision for a report
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verifierId: { type: string, format: uuid }
+                type: { $ref: '#/components/schemas/VerificationType' }
+                decision: { $ref: '#/components/schemas/VerificationDecision' }
+                comment: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Updated report and verification record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report: { $ref: '#/components/schemas/Report' }
+                  verification: { $ref: '#/components/schemas/Verification' }
+        '404': { description: Not found }
+  /api/hotspots:
+    get:
+      tags: [Hotspots]
+      summary: Compute and return hotspot polygons for the current filters
+      parameters:
+        - in: query
+          name: bbox
+          description: minLng,minLat,maxLng,maxLat
+          schema: { type: string }
+        - in: query
+          name: threshold
+          schema: { type: number, default: 0.5 }
+      responses:
+        '200':
+          description: List of hotspots
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Hotspot' }
+  /api/social/trends:
+    get:
+      tags: [Social]
+      summary: NLP-derived social media trends
+      parameters:
+        - in: query
+          name: bbox
+          description: minLng,minLat,maxLng,maxLat
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Trends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keywords:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        term: { type: string }
+                        count: { type: integer }
+                        sentiment: { type: number, minimum: -1, maximum: 1 }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Severity:
+      type: string
+      enum: [low, medium, high]
+    EventType:
+      type: string
+      enum: [tsunami, high_waves, flood, unusual_tide, debris, distress, other]
+    ReportStatus:
+      type: string
+      enum: [unverified, community_confirmed, verified, false, duplicate, escalated]
+    VerificationType:
+      type: string
+      enum: [official, community]
+    VerificationDecision:
+      type: string
+      enum: [verified, false, escalated, duplicate]
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [citizen, volunteer, official, analyst, admin] }
+        phone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        language: { type: string, nullable: true }
+        reputationScore: { type: number, default: 0 }
+        verifiedVolunteer: { type: boolean, default: false }
+    Media:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reportId: { type: string, format: uuid }
+        url: { type: string }
+        mediaType: { type: string, enum: [image, video] }
+        thumbnail: { type: string, nullable: true }
+        hash: { type: string, nullable: true }
+    Report:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid, nullable: true }
+        eventType: { $ref: '#/components/schemas/EventType' }
+        description: { type: string, nullable: true }
+        severity: { $ref: '#/components/schemas/Severity' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        verificationScore: { type: number, nullable: true }
+        timestamp: { type: string, format: date-time }
+        location:
+          type: object
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+        media:
+          type: array
+          items: { $ref: '#/components/schemas/Media' }
+    Verification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reportId: { type: string, format: uuid }
+        verifierId: { type: string, format: uuid, nullable: true }
+        type: { $ref: '#/components/schemas/VerificationType' }
+        decision: { $ref: '#/components/schemas/VerificationDecision' }
+        comment: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+    Hotspot:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        polygon:
+          type: object
+          description: GeoJSON Polygon
+          properties:
+            type: { type: string, enum: [Polygon] }
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  type: array
+                  items: { type: number }
+        score: { type: number }
+        createdAt: { type: string, format: date-time }
+        relatedReports: { type: array, items: { type: string, format: uuid } }
