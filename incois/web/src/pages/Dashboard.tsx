@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { MapView } from '../shared/MapView'
 
 function Header() {
   return (
@@ -45,7 +46,8 @@ function LeftFilters() {
 
 function MapCanvas() {
   return (
-    <div className="flex-1 relative bg-[url('https://tile.openstreetmap.org/0/0/0.png')] bg-cover">
+    <div className="flex-1 relative">
+      <MapView />
       <div className="absolute bottom-4 right-4">
         <Link to="/report/new" className="px-4 py-2 rounded-full bg-warning-500 text-white shadow-lg">Report Hazard</Link>
       </div>
